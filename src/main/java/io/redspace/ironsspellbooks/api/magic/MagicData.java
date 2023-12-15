@@ -3,16 +3,19 @@ package io.redspace.ironsspellbooks.api.magic;
 import io.redspace.ironsspellbooks.IronsSpellbooks;
 import io.redspace.ironsspellbooks.api.entity.IMagicEntity;
 import io.redspace.ironsspellbooks.api.events.ChangeManaEvent;
+import io.redspace.ironsspellbooks.api.registry.AttributeRegistry;
 import io.redspace.ironsspellbooks.api.registry.SpellRegistry;
 import io.redspace.ironsspellbooks.api.spells.*;
 import io.redspace.ironsspellbooks.capabilities.magic.PlayerCooldowns;
 import io.redspace.ironsspellbooks.capabilities.magic.PlayerMagicProvider;
+import io.redspace.ironsspellbooks.capabilities.magic.PlayerRecastHandler;
 import io.redspace.ironsspellbooks.capabilities.magic.SyncedSpellData;
 import io.redspace.ironsspellbooks.capabilities.spell.SpellData;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.common.MinecraftForge;
@@ -57,7 +60,7 @@ public class MagicData {
         //Event will not get posted if the server player is null
         ChangeManaEvent e = new ChangeManaEvent(this.serverPlayer, this, this.mana, mana);
         if (this.serverPlayer == null || !MinecraftForge.EVENT_BUS.post(e)) {
-            this.mana = e.getNewMana();
+            this.mana = Mth.clamp(e.getNewMana(), 0, (float) serverPlayer.getAttributeValue(AttributeRegistry.MAX_MANA.get()));
         }
     }
 
@@ -200,6 +203,14 @@ public class MagicData {
 
     public PlayerCooldowns getPlayerCooldowns() {
         return this.playerCooldowns;
+    }
+
+    /********* RECASTING *******************************************************/
+
+    private final PlayerRecastHandler recastHandler = new PlayerRecastHandler();
+
+    public PlayerRecastHandler getRecastHandler() {
+        return this.recastHandler;
     }
 
     /********* SYSTEM *******************************************************/

@@ -10,11 +10,13 @@ import io.redspace.ironsspellbooks.api.spells.CastType;
 import io.redspace.ironsspellbooks.api.spells.SpellRarity;
 import io.redspace.ironsspellbooks.api.util.Utils;
 import io.redspace.ironsspellbooks.capabilities.magic.MagicManager;
+import io.redspace.ironsspellbooks.capabilities.magic.PlayerRecastHandler;
 import io.redspace.ironsspellbooks.damage.DamageSources;
 import io.redspace.ironsspellbooks.entity.spells.eldritch_blast.EldritchBlastVisualEntity;
 import io.redspace.ironsspellbooks.entity.spells.ray_of_frost.RayOfFrostVisualEntity;
 import io.redspace.ironsspellbooks.registries.SoundRegistry;
 import io.redspace.ironsspellbooks.util.ParticleHelper;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
@@ -51,18 +53,13 @@ public class EldritchBlastSpell extends AbstractEldritchSpell {
         this.manaCostPerLevel = 15;
         this.baseSpellPower = 15;
         this.spellPowerPerLevel = 0;
-        this.castTime = 30;
+        this.castTime = 0;
         this.baseManaCost = 25;
     }
 
     @Override
-    public int getCastTime(int spellLevel) {
-        return castTime + 10 * (spellLevel - 1);
-    }
-
-    @Override
     public CastType getCastType() {
-        return CastType.CONTINUOUS;
+        return CastType.INSTANT;
     }
 
     @Override
@@ -82,24 +79,22 @@ public class EldritchBlastSpell extends AbstractEldritchSpell {
 
     @Override
     public Optional<SoundEvent> getCastFinishSound() {
-        return Optional.of(SoundRegistry.RAY_OF_FROST.get());
+        return Optional.empty();
     }
 
     @Override
     public void onCast(Level level, int spellLevel, LivingEntity entity, MagicData playerMagicData) {
+        playerMagicData.getRecastHandler().addRecast(this, spellLevel + 2, 40);
         var hitResult = Utils.raycastForEntity(level, entity, getRange(spellLevel, entity), true, .15f);
         level.addFreshEntity(new EldritchBlastVisualEntity(level, entity.getEyePosition(), hitResult.getLocation(), entity));
-        if (hitResult.getType() == HitResult.Type.ENTITY || hitResult.getType() == HitResult.Type.BLOCK) {
-            MagicManager.spawnParticles(level, ParticleHelper.ICY_FOG, hitResult.getLocation().x, hitResult.getLocation().y, hitResult.getLocation().z, 4, 0, 0, 0, .3, true);
-        }
         if (hitResult.getType() == HitResult.Type.ENTITY) {
             Entity target = ((EntityHitResult) hitResult).getEntity();
             if (target instanceof LivingEntity) {
-                if (DamageSources.applyDamage(target, getDamage(spellLevel, entity), getDamageSource(entity), getSchoolType())) {
+                if (DamageSources.applyDamage(target, getDamage(spellLevel, entity), getDamageSource(entity))) {
                 }
             }
         }
-        MagicManager.spawnParticles(level, ParticleHelper.SNOWFLAKE, hitResult.getLocation().x, hitResult.getLocation().y, hitResult.getLocation().z, 50, 0, 0, 0, .3, false);
+        MagicManager.spawnParticles(level, ParticleTypes.SMOKE, hitResult.getLocation().x, hitResult.getLocation().y, hitResult.getLocation().z, 50, 0, 0, 0, .3, false);
         super.onCast(level, spellLevel, entity, playerMagicData);
     }
 
@@ -113,5 +108,15 @@ public class EldritchBlastSpell extends AbstractEldritchSpell {
 
     private int getFreezeTime(int spellLevel, LivingEntity caster) {
         return (int) (getSpellPower(spellLevel, caster) * 30);
+    }
+
+    @Override
+    public int getRecastCount(int spellLevel, LivingEntity livingEntity) {
+        return 2 + spellLevel;
+    }
+
+    @Override
+    public int getRecastTime(int spellLevel, LivingEntity livingEntity) {
+        return 30;
     }
 }

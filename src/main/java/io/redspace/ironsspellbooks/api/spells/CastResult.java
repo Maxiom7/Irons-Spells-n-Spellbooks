@@ -1,11 +1,15 @@
 package io.redspace.ironsspellbooks.api.spells;
 
+import ca.weblite.objc.Message;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.Optional;
 
 public class CastResult {
     public enum Type {
         SUCCESS,
+        RECAST,
         FAILURE
     }
 
@@ -23,5 +27,9 @@ public class CastResult {
 
     public boolean isSuccess() {
         return this.type == Type.SUCCESS;
+    }
+
+    public Optional<Component> castMessage() {
+        return Optional.of(message);
     }
 }

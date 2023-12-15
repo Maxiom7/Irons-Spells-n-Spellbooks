@@ -247,14 +247,15 @@ public abstract class AbstractSpell {
 
         if (!playerMagicData.isCasting()) {
             CastResult castResult = canBeCastedBy(spellLevel, castSource, playerMagicData, serverPlayer);
-            if (castResult.message != null) {
-                serverPlayer.connection.send(new ClientboundSetActionBarTextPacket(castResult.message));
-            }
+            //castResult.castMessage().ifPresent((message) -> serverPlayer.connection.send(new ClientboundSetActionBarTextPacket(message)));
 
             if (!castResult.isSuccess() || !checkPreCastConditions(level, spellLevel, serverPlayer, playerMagicData) || MinecraftForge.EVENT_BUS.post(new SpellCastEvent(player, this.getSpellId(), spellLevel, getSchoolType(), castSource))) {
                 return false;
             }
-
+            if (castResult.type == CastResult.Type.RECAST) {
+                castSource = CastSource.RECAST;
+                triggerCooldown = false;
+            }
             var castType = getCastType();
             if (castType == CastType.INSTANT) {
                 /*
@@ -270,6 +271,9 @@ public abstract class AbstractSpell {
                 onServerPreCast(player.level, spellLevel, player, playerMagicData);
                 Messages.sendToPlayer(new ClientboundUpdateCastingState(getSpellId(), getLevel(spellLevel, player), effectiveCastTime, castSource), serverPlayer);
             }
+            if (this.canRecast(spellLevel, player)) {
+                playerMagicData.getRecastHandler().addRecast(this, getRecastCount(spellLevel, player), getRecastTime(spellLevel, player));
+            }
 
             Messages.sendToPlayersTrackingEntity(new ClientboundOnCastStarted(serverPlayer.getUUID(), getSpellId(), spellLevel), serverPlayer, true);
 
@@ -278,6 +282,18 @@ public abstract class AbstractSpell {
             Utils.serverSideCancelCast(serverPlayer);
             return false;
         }
+    }
+
+    public boolean canRecast(int spellLevel, LivingEntity livingEntity) {
+        return getRecastCount(spellLevel, livingEntity) > 0;
+    }
+
+    public int getRecastCount(int spellLevel, LivingEntity livingEntity) {
+        return 0;
+    }
+
+    public int getRecastTime(int spellLevel, LivingEntity livingEntity) {
+        return 0;
     }
 
     public void castSpell(Level world, int spellLevel, ServerPlayer serverPlayer, CastSource castSource, boolean triggerCooldown) {
@@ -349,12 +365,15 @@ public abstract class AbstractSpell {
 
         boolean hasEnoughMana = playerMana - getManaCost(spellLevel, player) >= 0;
         boolean isSpellOnCooldown = playerMagicData.getPlayerCooldowns().isOnCooldown(this);
+        boolean canRecast = playerMagicData.getRecastHandler().isRecastAvailable(this);
 
-        if ((castSource == CastSource.SPELLBOOK || castSource == CastSource.SWORD) && isSpellOnCooldown) {
+        if (canRecast) {
+            return new CastResult(CastResult.Type.RECAST);
+        } else if ((castSource == CastSource.SPELLBOOK || castSource == CastSource.SWORD) && isSpellOnCooldown) {
             return new CastResult(CastResult.Type.FAILURE, Component.translatable("ui.irons_spellbooks.cast_error_cooldown", getDisplayName(player)).withStyle(ChatFormatting.RED));
         } else if (castSource.consumesMana() && !hasEnoughMana) {
             return new CastResult(CastResult.Type.FAILURE, Component.translatable("ui.irons_spellbooks.cast_error_mana", getDisplayName(player)).withStyle(ChatFormatting.RED));
-        }else{
+        } else {
             return new CastResult(CastResult.Type.SUCCESS);
         }
     }
