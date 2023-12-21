@@ -148,8 +148,8 @@ public class IronsSpellbooks {
 //            LOGGER.info("Hello world from the MDK");
 //            return "Hello world";
 //        });
-        registerCurioSlot("ring", 2, false, null);
-        registerCurioSlot("necklace", 1, false, null);
+        registerCurioSlot("ring", 10, false, null);
+        registerCurioSlot("necklace", 3, false, null);
     }
 
     public static void registerCurioSlot(final String identifier, final int slots, final boolean isHidden, @Nullable final ResourceLocation icon) {
